@@ -1,534 +1,330 @@
 <!DOCTYPE html>
 <html lang="fi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Haswing Anchor – BLE Test</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
-        body {
-            font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
-            background: #111;
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 16px;
-        }
-
-        h1 {
-            font-size: 18px;
-            margin-bottom: 8px;
-            letter-spacing: 1px;
-        }
-
-        .subtitle {
-            font-size: 12px;
-            opacity: 0.5;
-            margin-bottom: 24px;
-        }
-
-        /* Status area */
-        .status-bar {
-            width: 100%;
-            max-width: 400px;
-            background: #222;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
-            font-size: 14px;
-        }
-        .status-bar .row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 4px;
-        }
-        .status-bar .row:last-child { margin-bottom: 0; }
-        .status-bar .label { opacity: 0.6; }
-
-        /* Big anchor button */
-        .anchor-btn {
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
-            border: 4px solid #888;
-            background: #222;
-            color: #fff;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin: 16px 0;
-            transition: all 0.2s;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .anchor-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-        .anchor-btn .icon { font-size: 48px; margin-bottom: 8px; }
-        .anchor-btn.active {
-            border-color: #fff;
-            background: #fff;
-            color: #111;
-            animation: blink 1s infinite;
-        }
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-
-        /* Action buttons */
-        .btn-row {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-            width: 100%;
-            max-width: 400px;
-        }
-        .btn {
-            flex: 1;
-            padding: 14px;
-            border-radius: 8px;
-            border: 2px solid #555;
-            background: #222;
-            color: #fff;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            text-align: center;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-        .btn:active:not(:disabled) {
-            background: #444;
-        }
-
-        /* Log area */
-        .log-area {
-            width: 100%;
-            max-width: 400px;
-            flex: 1;
-            min-height: 200px;
-        }
-        .log-area h3 {
-            font-size: 12px;
-            opacity: 0.5;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .log-content {
-            background: #0a0a0a;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 12px;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            line-height: 1.6;
-            max-height: 300px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-
-        /* Info text */
-        .info {
-            font-size: 12px;
-            opacity: 0.4;
-            margin-top: 16px;
-            text-align: center;
-            max-width: 400px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Haswing Anchor – BLE Diagnostiikka</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Roboto,sans-serif;background:#111;color:#fff;padding:12px;font-size:14px}
+h1{font-size:16px;text-align:center;margin-bottom:4px}
+.sub{font-size:11px;opacity:.4;text-align:center;margin-bottom:12px}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:10px}
+.card h2{font-size:13px;opacity:.6;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+.row{display:flex;justify-content:space-between;margin-bottom:3px;font-size:13px}
+.row .l{opacity:.5}
+.btn-row{display:flex;gap:8px;margin-bottom:10px}
+.btn{flex:1;padding:12px 8px;border-radius:8px;border:2px solid #555;background:#222;color:#fff;font-size:13px;font-weight:bold;cursor:pointer;text-align:center}
+.btn:disabled{opacity:.25}
+.btn:active:not(:disabled){background:#444}
+.btn.big{padding:20px;font-size:16px;border-color:#888}
+.btn.big.active{background:#fff;color:#111;border-color:#fff;animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+.log{background:#0a0a0a;border:1px solid #333;border-radius:6px;padding:8px;font-family:'Courier New',monospace;font-size:10px;line-height:1.5;max-height:250px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.gatt-list{font-family:'Courier New',monospace;font-size:11px;line-height:1.6;max-height:200px;overflow-y:auto}
+.gatt-list .svc{font-weight:bold;margin-top:6px}
+.gatt-list .chr{padding-left:12px;opacity:.8}
+.tag{display:inline-block;font-size:9px;padding:1px 4px;border:1px solid #666;border-radius:3px;margin-left:4px}
+.warn{border:1px solid #aa0;padding:8px;border-radius:6px;margin-bottom:10px;font-size:12px}
+</style>
 </head>
 <body>
 
-    <h1>HASWING ANCHOR</h1>
-    <p class="subtitle">BLE Protocol Test v1.0</p>
+<h1>⚓ HASWING DIAGNOSTIIKKA</h1>
+<p class="sub">BLE + MAVLink protokollatesti</p>
 
-    <!-- Status -->
-    <div class="status-bar">
-        <div class="row">
-            <span class="label">BLE-yhteys:</span>
-            <span id="bleStatus">[ - ] Ei yhdistetty</span>
-        </div>
-        <div class="row">
-            <span class="label">Laite:</span>
-            <span id="deviceName">---</span>
-        </div>
-        <div class="row">
-            <span class="label">Ankkuri:</span>
-            <span id="anchorStatus">---</span>
-        </div>
-        <div class="row">
-            <span class="label">Akku (vene):</span>
-            <span id="boatBattery">---</span>
-        </div>
-    </div>
+<!-- Status -->
+<div class="card">
+ <h2>Tila</h2>
+ <div class="row"><span class="l">BLE:</span><span id="sB">Ei yhdistetty</span></div>
+ <div class="row"><span class="l">Laite:</span><span id="sD">---</span></div>
+ <div class="row"><span class="l">Ankkuri:</span><span id="sA">---</span></div>
+ <div class="row"><span class="l">Akku:</span><span id="sBat">---</span></div>
+ <div class="row"><span class="l">Paketit RX/TX:</span><span id="sPkt">0 / 0</span></div>
+</div>
 
-    <!-- Connect / Disconnect -->
-    <div class="btn-row">
-        <button class="btn" id="btnConnect" onclick="connectBLE()">YHDISTA</button>
-        <button class="btn" id="btnDisconnect" onclick="disconnectBLE()" disabled>KATKAISE</button>
-    </div>
+<!-- Buttons -->
+<div class="btn-row">
+ <button class="btn" id="bCon" onclick="doConnect()">YHDISTA</button>
+ <button class="btn" id="bDis" onclick="doDisco()" disabled>KATKAISE</button>
+</div>
 
-    <!-- Big anchor button -->
-    <button class="anchor-btn" id="btnAnchor" onclick="toggleAnchor()" disabled>
-        <span class="icon">⚓</span>
-        <span id="anchorBtnText">ANKKURI</span>
-    </button>
+<button class="btn big" id="bAnc" onclick="doAnchor()" disabled style="width:100%;margin-bottom:10px">
+ ⚓ ANKKURI
+</button>
 
-    <!-- Extra commands for testing -->
-    <div class="btn-row">
-        <button class="btn" id="btnHeartbeat" onclick="sendHeartbeat()" disabled>HEARTBEAT</button>
-        <button class="btn" id="btnClearLog" onclick="clearLog()">TYHJENNA LOKI</button>
-    </div>
+<div class="btn-row">
+ <button class="btn" id="bHb" onclick="doHB()" disabled>HEARTBEAT</button>
+ <button class="btn" onclick="doExport()">KOPIOI LOKI</button>
+ <button class="btn" onclick="L.textContent=''">TYHJENNA</button>
+</div>
 
-    <!-- Log -->
-    <div class="log-area">
-        <h3>Viestiloki</h3>
-        <div class="log-content" id="logContent">Valmis. Paina YHDISTA aloittaaksesi.\n</div>
-    </div>
+<!-- GATT Discovery -->
+<div class="card">
+ <h2>GATT-palvelut (kaikki)</h2>
+ <div class="gatt-list" id="gattList">Yhdista ensin...</div>
+</div>
 
-    <p class="info">
-        Vaatii Chrome for Android + BLE.<br>
-        HM-connector ja moottori pitaa olla paalla.
-    </p>
+<!-- Main Log -->
+<div class="card">
+ <h2>Viestiloki</h2>
+ <div class="log" id="L">Valmis.\n</div>
+</div>
+
+<!-- Instructions -->
+<div class="warn">
+ <b>Ohje:</b> 1) Kaynnista moottori + HM-connector  2) Paina YHDISTA  3) Tarkista GATT-lista  4) Paina ANKKURI  5) Kopioi loki ja lahetä minulle jos ei toimi
+</div>
 
 <script>
-// ============================================================
-//  Haswing Anchor – Web Bluetooth Test
-//  Same MAVLink protocol as the M5StickC Plus2 firmware
-// ============================================================
+const SVC=0xFFE0, WC=0xFFE1, NC=0xFFE4;
+const STX=0xFE,SID=255,CID=190;
+const MID_HB=0,MID_AD=169,MID_ME=182,MID_RT=184;
+const CX_HB=50,CX_ME=159;
 
-// BLE UUIDs
-const SERVICE_UUID       = 0xFFE0;
-const WRITE_CHAR_UUID    = 0xFFE1;
-const NOTIFY_CHAR_UUID   = 0xFFE4;
+let dev,srv,wCh,nCh,conn=false,anc=false,seq=0,rxC=0,txC=0;
+const L=document.getElementById('L');
+const sB=document.getElementById('sB'),sD=document.getElementById('sD');
+const sA=document.getElementById('sA'),sBat=document.getElementById('sBat');
+const sPkt=document.getElementById('sPkt');
+const bCon=document.getElementById('bCon'),bDis=document.getElementById('bDis');
+const bAnc=document.getElementById('bAnc'),bHb=document.getElementById('bHb');
+const gL=document.getElementById('gattList');
+let fullLog='';
 
-// MAVLink constants
-const STX       = 0xFE;
-const SYSID     = 255;
-const COMPID    = 190;
-const MSG_ID_HEARTBEAT    = 0;
-const MSG_ID_ANCHOR_DATA  = 169;
-const MSG_ID_MODE_ENABLE  = 182;
-const MSG_ID_REALTIME     = 184;
-const CRC_EXTRA_HEARTBEAT = 50;
-const CRC_EXTRA_MODE      = 159;
-const BOAT_MODE_ANCHOR    = 12;
+function ts(){return new Date().toLocaleTimeString('fi',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit',fractionalSecondDigits:3})}
+function log(m){const s=`[${ts()}] ${m}\n`;fullLog+=s;L.textContent+=s;L.scrollTop=L.scrollHeight}
+function hex(d){return Array.from(new Uint8Array(d instanceof ArrayBuffer?d:d.buffer||d)).map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' ')}
 
-// State
-let device = null;
-let server = null;
-let writeChar = null;
-let notifyChar = null;
-let connected = false;
-let anchorActive = false;
-let seq = 0;
+// CRC
+function crcAcc(d,c){let t=d^(c&0xFF);t^=(t<<4)&0xFF;return((c>>8)&0xFF)^(t<<8)^(t<<3)^((t>>4)&0xFF)&0xFFFF}
+function crcCalc(b){let c=0xFFFF;for(let i=0;i<b.length;i++)c=crcAcc(b[i],c);return c}
 
-// DOM refs
-const elBleStatus    = document.getElementById('bleStatus');
-const elDeviceName   = document.getElementById('deviceName');
-const elAnchorStatus = document.getElementById('anchorStatus');
-const elBoatBattery  = document.getElementById('boatBattery');
-const elBtnConnect   = document.getElementById('btnConnect');
-const elBtnDisconnect = document.getElementById('btnDisconnect');
-const elBtnAnchor    = document.getElementById('btnAnchor');
-const elBtnHeartbeat = document.getElementById('btnHeartbeat');
-const elAnchorBtnText = document.getElementById('anchorBtnText');
-const elLogContent   = document.getElementById('logContent');
-
-// ============================================================
-//  Logging
-// ============================================================
-
-function log(msg) {
-    const ts = new Date().toLocaleTimeString('fi-FI');
-    elLogContent.textContent += `[${ts}] ${msg}\n`;
-    elLogContent.scrollTop = elLogContent.scrollHeight;
-    console.log(msg);
+// Packet builder
+function buildPkt(mid,pl,cx){
+ const p=new Uint8Array(8+pl.length);
+ p[0]=STX;p[1]=pl.length;p[2]=seq++&0xFF;p[3]=SID;p[4]=CID;p[5]=mid;
+ p.set(pl,6);
+ let c=crcCalc(p.slice(1,6+pl.length));c=crcAcc(cx,c);
+ p[6+pl.length]=c&0xFF;p[7+pl.length]=(c>>8)&0xFF;
+ return p;
 }
 
-function logHex(label, data) {
-    const hex = Array.from(new Uint8Array(data)).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-    log(`${label}: ${hex}`);
+function buildAnchor(){return buildPkt(MID_ME,new Uint8Array([12,0,1,0]),CX_ME)}
+function buildHB(){const p=new Uint8Array(9);p[8]=3;return buildPkt(MID_HB,p,CX_HB)}
+
+// UUID helpers
+function uuidShort(u){
+ const s=u.toString();
+ if(s.length>8){const m=s.match(/^0000([0-9a-f]{4})-/i);if(m)return'0x'+m[1].toUpperCase();return s.substring(0,8)+'...';}
+ return'0x'+parseInt(s).toString(16).toUpperCase();
 }
 
-function clearLog() {
-    elLogContent.textContent = '';
-}
-
-// ============================================================
-//  MAVLink v1 CRC (X.25)
-// ============================================================
-
-function crcAccumulate(data, crc) {
-    let tmp = data ^ (crc & 0xFF);
-    tmp ^= (tmp << 4) & 0xFF;
-    crc = ((crc >> 8) & 0xFF) ^ (tmp << 8) ^ (tmp << 3) ^ ((tmp >> 4) & 0xFF);
-    return crc & 0xFFFF;
-}
-
-function crcCalculate(buf) {
-    let crc = 0xFFFF;
-    for (let i = 0; i < buf.length; i++) {
-        crc = crcAccumulate(buf[i], crc);
-    }
-    return crc;
-}
-
-// ============================================================
-//  MAVLink Packet Builder
-// ============================================================
-
-function buildPacket(msgId, payload, crcExtra) {
-    const len = payload.length;
-    const packet = new Uint8Array(8 + len);
-    
-    packet[0] = STX;
-    packet[1] = len;
-    packet[2] = seq++ & 0xFF;
-    packet[3] = SYSID;
-    packet[4] = COMPID;
-    packet[5] = msgId;
-    
-    for (let i = 0; i < len; i++) {
-        packet[6 + i] = payload[i];
-    }
-    
-    // CRC over bytes 1..5+len
-    const crcBuf = packet.slice(1, 6 + len);
-    let crc = crcCalculate(crcBuf);
-    crc = crcAccumulate(crcExtra, crc);
-    
-    packet[6 + len] = crc & 0xFF;
-    packet[7 + len] = (crc >> 8) & 0xFF;
-    
-    return packet;
-}
-
-function buildAnchorToggle() {
-    // MODE_ENABLE: control_mode_enable_flag=12 (ANCHOR), function_enable_flag=1
-    const payload = new Uint8Array([
-        BOAT_MODE_ANCHOR & 0xFF, (BOAT_MODE_ANCHOR >> 8) & 0xFF,  // mode = 12
-        0x01, 0x00                                                  // enable = 1
-    ]);
-    return buildPacket(MSG_ID_MODE_ENABLE, payload, CRC_EXTRA_MODE);
-}
-
-function buildHeartbeat() {
-    const payload = new Uint8Array(9);
-    payload[8] = 3;  // mavlink_version
-    return buildPacket(MSG_ID_HEARTBEAT, payload, CRC_EXTRA_HEARTBEAT);
-}
-
-// ============================================================
-//  BLE Connection
-// ============================================================
-
-async function connectBLE() {
-    try {
-        log('Etsitaan HM-laitteita...');
-        
-        device = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: 'HM_' }],
-            optionalServices: [SERVICE_UUID]
-        });
-        
-        log(`Valittu: ${device.name}`);
-        elDeviceName.textContent = device.name;
-        
-        device.addEventListener('gattserverdisconnected', onDisconnected);
-        
-        log('Yhdistetaan GATT...');
-        server = await device.gatt.connect();
-        
-        log('Etsitaan FFE0 service...');
-        const service = await server.getPrimaryService(SERVICE_UUID);
-        
-        log('Etsitaan FFE1 (write)...');
-        writeChar = await service.getCharacteristic(WRITE_CHAR_UUID);
-        log('FFE1 OK!');
-        
-        try {
-            log('Etsitaan FFE4 (notify)...');
-            notifyChar = await service.getCharacteristic(NOTIFY_CHAR_UUID);
-            await notifyChar.startNotifications();
-            notifyChar.addEventListener('characteristicvaluechanged', onNotification);
-            log('FFE4 OK - kuunnellaan!');
-        } catch (e) {
-            log('FFE4 ei saatavilla (ei kriittinen): ' + e.message);
+// GATT Discovery - scan ALL services and characteristics
+async function discoverGATT(){
+ gL.textContent='Etsitaan palveluita...\n';
+ let out='';
+ try{
+  // Get ALL services (not just FFE0)
+  const svcs=await srv.getPrimaryServices();
+  log(`[GATT] Loytyi ${svcs.length} palvelua`);
+  
+  for(const svc of svcs){
+   const sUuid=uuidShort(svc.uuid);
+   out+=`\n[SERVICE] ${svc.uuid}\n`;
+   log(`[GATT] Service: ${svc.uuid}`);
+   
+   try{
+    const chars=await svc.getCharacteristics();
+    for(const ch of chars){
+     const props=[];
+     if(ch.properties.read)props.push('READ');
+     if(ch.properties.write)props.push('WRITE');
+     if(ch.properties.writeWithoutResponse)props.push('WRITE_NR');
+     if(ch.properties.notify)props.push('NOTIFY');
+     if(ch.properties.indicate)props.push('INDICATE');
+     
+     out+=`  [CHAR] ${ch.uuid}  ${props.join(', ')}\n`;
+     log(`[GATT]   Char: ${ch.uuid} [${props.join(',')}]`);
+     
+     // Auto-read readable characteristics
+     if(ch.properties.read){
+      try{
+       const val=await ch.readValue();
+       const bytes=new Uint8Array(val.buffer);
+       out+=`         Value: ${hex(bytes)}\n`;
+       log(`[GATT]     Read: ${hex(bytes)}`);
+       // Try as string too
+       try{
+        const str=new TextDecoder().decode(bytes);
+        if(str.length>0&&str.length<50&&/^[\x20-\x7E]+$/.test(str)){
+         out+=`         Text: "${str}"\n`;
+         log(`[GATT]     Text: "${str}"`);
         }
-        
-        connected = true;
-        updateUI();
-        log('=== YHDISTETTY! ===');
-        
-    } catch (err) {
-        log('VIRHE: ' + err.message);
+       }catch(e){}
+      }catch(e){
+       out+=`         (read failed: ${e.message})\n`;
+      }
+     }
+     
+     // Auto-subscribe to ALL notify characteristics
+     if(ch.properties.notify||ch.properties.indicate){
+      try{
+       await ch.startNotifications();
+       ch.addEventListener('characteristicvaluechanged',(ev)=>{
+        const d=new Uint8Array(ev.target.value.buffer);
+        rxC++;sPkt.textContent=`${rxC} / ${txC}`;
+        const chId=uuidShort(ev.target.uuid);
+        log(`[RX ${chId}] ${hex(d)}`);
+        parseMavlink(d);
+       });
+       out+=`         (subscribed to notifications)\n`;
+       log(`[GATT]     Subscribed to notify`);
+      }catch(e){
+       out+=`         (notify subscribe failed: ${e.message})\n`;
+      }
+     }
     }
+   }catch(e){
+    out+=`  (chars failed: ${e.message})\n`;
+   }
+  }
+ }catch(e){
+  out+=`GATT discovery error: ${e.message}\n`;
+  log(`[GATT] ERROR: ${e.message}`);
+ }
+ gL.textContent=out;
 }
 
-function disconnectBLE() {
-    if (device && device.gatt.connected) {
-        device.gatt.disconnect();
-    }
-    onDisconnected();
+// Parse incoming MAVLink
+function parseMavlink(d){
+ if(d.length<8||d[0]!==STX)return;
+ const mid=d[5],plen=d[1];
+ 
+ if(mid===MID_AD&&plen>=11){
+  const st=d[6+10];
+  const wasAnc=anc;
+  anc=st!==0;
+  sA.textContent=anc?'PAALLA':'POIS';
+  log(`[ANCHOR] state=${st} -> ${anc?'PAALLA':'POIS'}`);
+  if(anc!==wasAnc)updUI();
+  
+  // Parse lat/lon/speed too
+  if(plen>=10){
+   const v=new DataView(d.buffer,6);
+   try{
+    const lat=v.getInt32(0,true);
+    const lon=v.getInt32(4,true);
+    const spd=v.getUint16(8,true);
+    log(`[ANCHOR] lat=${lat} lon=${lon} speed=${spd}`);
+   }catch(e){}
+  }
+ }
+ else if(mid===MID_RT&&plen>=16){
+  const v=new DataView(d.buffer,6);
+  const p1=v.getInt32(0,true),p2=v.getInt32(4,true);
+  const p3=v.getFloat32(8,true),p4=v.getFloat32(12,true);
+  log(`[REALTIME] p1=${p1} p2=${p2} p3=${p3.toFixed(2)} p4=${p4.toFixed(2)}`);
+  if(plen>=22){
+   try{
+    const p5=v.getInt32(16,true);
+    const tSys=d[6+20],tComp=d[6+21];
+    log(`[REALTIME] p5=${p5} tgt_sys=${tSys} tgt_comp=${tComp}`);
+   }catch(e){}
+  }
+  if(p3>5&&p3<60)sBat.textContent=p3.toFixed(1)+'V';
+  const bs={0:'?',1:'LOW!',2:'OK',4:'FULL'};
+  if(bs[p1])sBat.textContent+=' ('+bs[p1]+')';
+ }
+ else if(mid===MID_HB){
+  log(`[HEARTBEAT] from device`);
+ }
+ else{
+  log(`[MAVLink] MSG_ID=${mid} len=${plen}`);
+ }
 }
 
-function onDisconnected() {
-    connected = false;
-    anchorActive = false;
-    writeChar = null;
-    notifyChar = null;
-    updateUI();
-    log('=== YHTEYS KATKENNUT ===');
+// Connect
+async function doConnect(){
+ try{
+  log('Etsitaan BLE-laitteita (HM_*)...');
+  dev=await navigator.bluetooth.requestDevice({
+   filters:[{namePrefix:'HM_'}],
+   optionalServices:['generic_access','generic_attribute','device_information',
+    0xFFE0,0xFFE5,0xFFF0,0x180A,0x1800,0x1801]
+  });
+  log(`Valittu: ${dev.name} (id: ${dev.id})`);
+  sD.textContent=dev.name;
+  dev.addEventListener('gattserverdisconnected',onDisco);
+  
+  log('GATT connect...');
+  srv=await dev.gatt.connect();
+  log('GATT OK!');
+  
+  // Find write char
+  try{
+   const svc=await srv.getPrimaryService(SVC);
+   wCh=await svc.getCharacteristic(WC);
+   log(`FFE1 (write) OK`);
+  }catch(e){
+   log(`FFE1 EI LOYTYNYT: ${e.message}`);
+  }
+  
+  conn=true;updUI();
+  log('=== YHDISTETTY ===');
+  
+  // Full GATT discovery
+  await discoverGATT();
+  
+ }catch(e){log(`VIRHE: ${e.message}`)}
 }
 
-// ============================================================
-//  Notification Handler (data from boat)
-// ============================================================
+function doDisco(){if(dev&&dev.gatt.connected)dev.gatt.disconnect();onDisco()}
+function onDisco(){conn=false;anc=false;wCh=null;nCh=null;updUI();log('=== YHTEYS KATKENNUT ===')}
 
-function onNotification(event) {
-    const value = event.target.value;
-    const data = new Uint8Array(value.buffer);
-    
-    logHex('RX', data);
-    
-    if (data.length >= 8 && data[0] === STX) {
-        const msgId = data[5];
-        const payloadLen = data[1];
-        
-        if (msgId === MSG_ID_ANCHOR_DATA && payloadLen >= 11) {
-            const anchorState = data[6 + 10];
-            const wasActive = anchorActive;
-            anchorActive = anchorState !== 0;
-            
-            elAnchorStatus.textContent = anchorActive ? 'PAALLA' : 'POIS';
-            log(`[ANCHOR] Tila: ${anchorActive ? 'PAALLA' : 'POIS'} (state=${anchorState})`);
-            
-            if (anchorActive !== wasActive) updateUI();
-        }
-        else if (msgId === MSG_ID_REALTIME && payloadLen >= 16) {
-            // Parse params - log all for debugging
-            const view = new DataView(data.buffer, 6);
-            const p1 = view.getInt32(0, true);
-            const p2 = view.getInt32(4, true);
-            const p3 = view.getFloat32(8, true);
-            const p4 = view.getFloat32(12, true);
-            
-            log(`[REALTIME] p1=${p1} p2=${p2} p3=${p3.toFixed(2)} p4=${p4.toFixed(2)}`);
-            
-            // Best guess: p3 = voltage
-            if (p3 > 5 && p3 < 60) {
-                elBoatBattery.textContent = `${p3.toFixed(1)}V`;
-            }
-            
-            // Battery state from p1
-            const batStates = { 0: '?', 1: 'LOW!', 2: 'OK', 4: 'FULL' };
-            if (p1 in batStates) {
-                elBoatBattery.textContent += ` (${batStates[p1]})`;
-            }
-        }
-        else {
-            log(`[MAVLink] MSG_ID=${msgId} len=${payloadLen}`);
-        }
-    }
+async function sendPkt(p,label){
+ if(!conn||!wCh)return;
+ txC++;sPkt.textContent=`${rxC} / ${txC}`;
+ log(`[TX ${label}] ${hex(p)}`);
+ try{await wCh.writeValueWithoutResponse(p)}
+ catch(e){try{await wCh.writeValue(p)}catch(e2){log(`WRITE FAIL: ${e2.message}`)}}
 }
 
-// ============================================================
-//  Commands
-// ============================================================
-
-async function toggleAnchor() {
-    if (!connected || !writeChar) {
-        log('Ei yhdistetty!');
-        return;
-    }
-    
-    log('Lahetetaan ANCHOR toggle...');
-    
-    // Send 3 times for reliability (same as firmware)
-    for (let i = 0; i < 3; i++) {
-        const packet = buildAnchorToggle();
-        logHex('TX', packet);
-        
-        try {
-            await writeChar.writeValueWithoutResponse(packet);
-        } catch (e) {
-            // Fallback
-            await writeChar.writeValue(packet);
-        }
-        
-        if (i < 2) await new Promise(r => setTimeout(r, 200));
-    }
-    
-    // Toggle local state (will be corrected by ANCHOR_DATA)
-    anchorActive = !anchorActive;
-    elAnchorStatus.textContent = anchorActive ? 'PAALLA (odottaa vahvistusta)' : 'POIS (odottaa vahvistusta)';
-    updateUI();
-    
-    log(`Ankkuri: ${anchorActive ? 'PAALLE' : 'POIS'} (lahetetty)`);
+async function doAnchor(){
+ if(!conn)return;
+ log('--- ANCHOR TOGGLE ---');
+ for(let i=0;i<3;i++){
+  await sendPkt(buildAnchor(),'ANCHOR');
+  if(i<2)await new Promise(r=>setTimeout(r,200));
+ }
+ anc=!anc;sA.textContent=anc?'PAALLA?':'POIS?';updUI();
 }
 
-async function sendHeartbeat() {
-    if (!connected || !writeChar) return;
-    
-    const packet = buildHeartbeat();
-    logHex('TX HB', packet);
-    
-    try {
-        await writeChar.writeValueWithoutResponse(packet);
-    } catch (e) {
-        await writeChar.writeValue(packet);
-    }
-    
-    log('Heartbeat lahetetty');
+async function doHB(){
+ if(!conn)return;
+ await sendPkt(buildHB(),'HEARTBEAT');
 }
 
-// ============================================================
-//  UI Update
-// ============================================================
-
-function updateUI() {
-    elBleStatus.textContent = connected ? '[BLE] Yhdistetty' : '[ - ] Ei yhdistetty';
-    
-    elBtnConnect.disabled = connected;
-    elBtnDisconnect.disabled = !connected;
-    elBtnAnchor.disabled = !connected;
-    elBtnHeartbeat.disabled = !connected;
-    
-    if (anchorActive) {
-        elBtnAnchor.classList.add('active');
-        elAnchorBtnText.textContent = 'ANKKURI PAALLA';
-    } else {
-        elBtnAnchor.classList.remove('active');
-        elAnchorBtnText.textContent = 'ANKKURI';
-    }
-    
-    if (!connected) {
-        elAnchorStatus.textContent = '---';
-        elDeviceName.textContent = '---';
-    }
+function doExport(){
+ const header=`Haswing BLE Diagnostics - ${new Date().toISOString()}\nDevice: ${sD.textContent}\nGATT:\n${gL.textContent}\n\n--- LOG ---\n`;
+ const all=header+fullLog;
+ navigator.clipboard.writeText(all).then(()=>log('Loki kopioitu leikepoydale!')).catch(()=>{
+  // Fallback: download
+  const b=new Blob([all],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download='haswing_diag_'+Date.now()+'.txt';a.click();
+  log('Loki ladattu tiedostona');
+ });
 }
 
-// Check Web Bluetooth support
-if (!navigator.bluetooth) {
-    log('VAROITUS: Web Bluetooth ei tuettu tassa selaimessa!');
-    log('Kayta Chrome for Android.');
-    elBtnConnect.disabled = true;
+function updUI(){
+ sB.textContent=conn?'[BLE] Yhdistetty':'Ei yhdistetty';
+ bCon.disabled=conn;bDis.disabled=!conn;bAnc.disabled=!conn;bHb.disabled=!conn;
+ bAnc.className=anc?'btn big active':'btn big';
+ bAnc.textContent=anc?'⚓ ANKKURI PAALLA':'⚓ ANKKURI';
 }
+
+if(!navigator.bluetooth){log('Web Bluetooth ei tuettu! Kayta Chrome Android.');bCon.disabled=true}
 </script>
 </body>
 </html>
