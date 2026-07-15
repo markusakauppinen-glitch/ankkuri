@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>Haswing Anchor – BLE v2.4</title>
+<title>Haswing Anchor – BLE v2.5</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,Roboto,sans-serif;background:#111;color:#fff;padding:12px;font-size:14px}
@@ -25,8 +25,8 @@ h1{font-size:16px;text-align:center;margin-bottom:4px}
 </head>
 <body>
 
-<h1>⚓ HASWING ANCHOR v2.4</h1>
-<p class="sub">Helmsman-style init (no handshake)</p>
+<h1>⚓ HASWING ANCHOR v2.5</h1>
+<p class="sub">Helmsman-style + MSG80 auth</p>
 
 <div class="card">
  <h2>Tila</h2>
@@ -54,7 +54,7 @@ h1{font-size:16px;text-align:center;margin-bottom:4px}
 
 <div class="card">
  <h2>Viestiloki</h2>
- <div class="log" id="L">v2.4 - Helmsman-style init\n</div>
+ <div class="log" id="L">v2.5 - MSG80 auth + MSG40 init\n</div>
 </div>
 
 <script>
@@ -112,12 +112,12 @@ function buildMsg40(val){
 function buildAnchorCmd(cmd){
  var pl=new Uint8Array(33);
  pl[28]=cmd&0xFF;pl[29]=(cmd>>8)&0xFF;
- // COMMAND_LONG: target_system=1, target_component=1
- pl[30]=1;  // target_system
- pl[31]=1;  // target_component
- pl[32]=0;  // confirmation
+ pl[30]=1;pl[31]=1;pl[32]=0;
  return buildPkt(MID_CL,pl,CX_CL);
 }
+
+// MSG80: Auth packet from Helmsman HCI log (enables command forwarding)
+var MSG80_RAW=new Uint8Array([0xFE,0x4A,0x17,0x23,0x45,0x50,0x42,0x55,0x11,0x32,0xAC,0x6F,0x24,0x3D,0x0F,0xA8,0x3A,0x1B,0x4C,0x28,0x4E,0x3F,0x0B,0xAB,0x03,0x31,0x1A,0xA1,0x02,0x3F,0xA0,0x17,0xAC,0x06,0x41,0x8D,0x1F,0x26,0x33,0xE3,0x3D,0x34,0xD2,0x92,0xEA,0xDB,0x76,0xA8,0x7E,0x0A,0xE1,0x8D,0x08,0x5E,0x26,0xA7,0x1C,0x3A,0x9F,0x96,0x5C,0x19,0x3F,0x17,0x84,0x15,0x05,0x3F,0x00,0x00,0x84,0x15,0x06,0x21,0x00,0x00,0x84,0x15,0x04,0x7F,0x1F,0x00]);
 
 async function sendPkt(p,label){
  if(!conn||!wCh)return;
@@ -257,6 +257,13 @@ async function doConnect(){
   updUI();
   log('=== BLE CONNECTED to '+bleName+' ===');
   sD.textContent=bleName;
+
+  // v2.5: Send MSG80 auth first (from Helmsman HCI capture)
+  log('[AUTH] Sending MSG80 auth packet...');
+  sH.textContent='Auth...';
+  await sendPkt(MSG80_RAW,'MSG80-AUTH');
+
+  // Then heartbeats
   hbInterval=setInterval(async function(){if(conn)await sendPkt(buildHB(),'HB')},2000);
   sH.textContent='Init...';
   await sendPkt(buildHB(),'HB');
@@ -290,7 +297,7 @@ async function doAnchorToggle(){
 }
 
 function doExport(){
- var all='Haswing BLE Diag v2.4 - '+new Date().toISOString()+'\nBLE: '+bleName+' Motor: '+devName+'\n\n'+fullLog;
+ var all='Haswing BLE Diag v2.5 - '+new Date().toISOString()+'\nBLE: '+bleName+' Motor: '+devName+'\n\n'+fullLog;
  navigator.clipboard.writeText(all).then(function(){log('Kopioitu!')}).catch(function(){
   var b=new Blob([all],{type:'text/plain'});
   var a=document.createElement('a');a.href=URL.createObjectURL(b);
