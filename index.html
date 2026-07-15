@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>Haswing Anchor – BLE v2.0</title>
+<title>Haswing Anchor – BLE v2.2</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,Roboto,sans-serif;background:#111;color:#fff;padding:12px;font-size:14px}
@@ -21,13 +21,12 @@ h1{font-size:16px;text-align:center;margin-bottom:4px}
 .btn.big.active{background:#fff;color:#111;border-color:#fff;animation:blink 1s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
 .log{background:#0a0a0a;border:1px solid #333;border-radius:6px;padding:8px;font-family:'Courier New',monospace;font-size:10px;line-height:1.5;max-height:300px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
-.warn{border:1px solid #888;padding:8px;border-radius:6px;margin-bottom:10px;font-size:12px}
 </style>
 </head>
 <body>
 
-<h1>⚓ HASWING ANCHOR v2.0</h1>
-<p class="sub">HCI-verified protocol</p>
+<h1>⚓ HASWING ANCHOR v2.2</h1>
+<p class="sub">Init sequence from HCI log</p>
 
 <div class="card">
  <h2>Tila</h2>
@@ -35,8 +34,7 @@ h1{font-size:16px;text-align:center;margin-bottom:4px}
  <div class="row"><span class="l">Handshake:</span><span id="sH">---</span></div>
  <div class="row"><span class="l">Laite:</span><span id="sD">---</span></div>
  <div class="row"><span class="l">Ankkuri:</span><span id="sA">---</span></div>
- <div class="row"><span class="l">Akku (vene):</span><span id="sBat">---</span></div>
- <div class="row"><span class="l">GPS:</span><span id="sGps">---</span></div>
+ <div class="row"><span class="l">Akku:</span><span id="sBat">---</span></div>
 </div>
 
 <div class="btn-row">
@@ -49,130 +47,140 @@ h1{font-size:16px;text-align:center;margin-bottom:4px}
 </button>
 
 <div class="btn-row">
- <button class="btn" id="bHb" onclick="doHB()" disabled>HEARTBEAT</button>
+ <button class="btn" id="bHs" onclick="manualHS()" disabled>HANDSHAKE</button>
  <button class="btn" onclick="doExport()">KOPIOI LOKI</button>
  <button class="btn" onclick="L.textContent=''">TYHJENNA</button>
 </div>
 
 <div class="card">
  <h2>Viestiloki</h2>
- <div class="log" id="L">Valmis. HCI-verified protocol v2.0\n</div>
-</div>
-
-<div class="warn">
- <b>Ohje:</b> 1) Kaynnista moottori + HM-connector 2) YHDISTA 3) Odota "Isok" 4) ANKKURI
+ <div class="log" id="L">v2.2 - HCI init sequence\n</div>
 </div>
 
 <script>
-const SVC=0xFFE0,WC=0xFFE1,NC=0xFFE4;
-const STX=0xFE,SID=255,CID=190,CID_APP=99;
-const MID_HB=0,MID_DEV=7,MID_IMU=26,MID_BATT=27,MID_COMPASS=30,MID_GPS=33,
-      MID_CL=76,MID_AD=169,MID_HS=249;
-const CX_HB=50,CX_CL=152;
-const WIFI_PASS="0123456789",HS_TOKEN="Jz";
+var SVC=0xFFE0,WC=0xFFE1,NC=0xFFE4;
+var STX=0xFE,SID=255,CID=190,CID_APP=99;
+var MID_HB=0,MID_DEV=7,MID_BATT=27,MID_CL=76,MID_HS=249;
+var CX_HB=50,CX_CL=152;
+var WIFI_PASS="0123456789",HS_TOKEN="Jz",MOTOR_NAME="HSW_UdUon";
 
-let dev,srv,wCh,nCh,conn=false,hsOk=false,anc=false,seq=0,devName="";
-let rxBuf=new Uint8Array(0);
-let fullLog='';
+var dev,srv,wCh,nCh,conn=false,hsOk=false,anc=false,seq=0,devName="",bleName="";
+var rxBuf=new Uint8Array(0);
+var fullLog='';
 
-const L=document.getElementById('L');
-const sB=document.getElementById('sB'),sD=document.getElementById('sD');
-const sA=document.getElementById('sA'),sBat=document.getElementById('sBat');
-const sH=document.getElementById('sH'),sGps=document.getElementById('sGps');
-const bCon=document.getElementById('bCon'),bDis=document.getElementById('bDis');
-const bAnc=document.getElementById('bAnc'),bHb=document.getElementById('bHb');
+var L=document.getElementById('L');
+var sB=document.getElementById('sB'),sD=document.getElementById('sD');
+var sA=document.getElementById('sA'),sBat=document.getElementById('sBat');
+var sH=document.getElementById('sH');
+var bCon=document.getElementById('bCon'),bDis=document.getElementById('bDis');
+var bAnc=document.getElementById('bAnc'),bHs=document.getElementById('bHs');
 
 function ts(){return new Date().toLocaleTimeString('fi',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit',fractionalSecondDigits:3})}
-function log(m){const s=`[${ts()}] ${m}\n`;fullLog+=s;L.textContent+=s;L.scrollTop=L.scrollHeight}
-function hex(d){return Array.from(new Uint8Array(d instanceof ArrayBuffer?d:d.buffer||d)).map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' ')}
+function log(m){var s='['+ts()+'] '+m+'\n';fullLog+=s;L.textContent+=s;L.scrollTop=L.scrollHeight}
+function hex(d){return Array.from(new Uint8Array(d instanceof ArrayBuffer?d:d.buffer||d)).map(function(b){return b.toString(16).padStart(2,'0').toUpperCase()}).join(' ')}
 
-function crcAcc(d,c){let t=d^(c&0xFF);t^=(t<<4)&0xFF;return((c>>8)&0xFF)^(t<<8)^(t<<3)^((t>>4)&0xFF)&0xFFFF}
-function crcCalc(b){let c=0xFFFF;for(let i=0;i<b.length;i++)c=crcAcc(b[i],c);return c}
+function crcAcc(d,c){var t=d^(c&0xFF);t^=(t<<4)&0xFF;return((c>>8)&0xFF)^(t<<8)^(t<<3)^((t>>4)&0xFF)&0xFFFF}
+function crcCalc(b){var c=0xFFFF;for(var i=0;i<b.length;i++)c=crcAcc(b[i],c);return c}
 
-function buildPkt(mid,pl,cx,sid=SID,cid=CID){
- const p=new Uint8Array(8+pl.length);
+function buildPkt(mid,pl,cx,sid,cid){
+ sid=sid||SID;cid=cid||CID;
+ var p=new Uint8Array(8+pl.length);
  p[0]=STX;p[1]=pl.length;p[2]=seq++&0xFF;p[3]=sid;p[4]=cid;p[5]=mid;
  p.set(pl,6);
- let c=crcCalc(p.slice(1,6+pl.length));c=crcAcc(cx,c);
+ var c=crcCalc(p.slice(1,6+pl.length));c=crcAcc(cx,c);
  p[6+pl.length]=c&0xFF;p[7+pl.length]=(c>>8)&0xFF;
  return p;
 }
 
 function buildHB(){
- const p=new Uint8Array(9);p[4]=106;p[8]=3;
+ var p=new Uint8Array(9);p[4]=106;p[8]=3;
  return buildPkt(MID_HB,p,CX_HB);
 }
 
 function buildHandshake(name){
- const pl=new Uint8Array(36);
- const str=name+','+WIFI_PASS+','+HS_TOKEN;
- for(let i=0;i<str.length&&i<32;i++)pl[4+i]=str.charCodeAt(i);
- return buildPkt(MID_HS,pl,0,SID,CID_APP);
+ var pl=new Uint8Array(31);
+ var str=name+','+WIFI_PASS+','+HS_TOKEN;
+ for(var i=0;i<str.length&&i<27;i++)pl[4+i]=str.charCodeAt(i);
+ return buildPkt(MID_HS,pl,187,SID,CID_APP);
+}
+
+// MSG_ID=43: triggers motor to send its name (CRC_EXTRA=132)
+function buildMsg43(){
+ var pl=new Uint8Array(2);
+ return buildPkt(43,pl,132,SID,CID_APP);
+}
+
+// MSG_ID=40: part of init sequence (CRC_EXTRA=230)
+function buildMsg40(val){
+ var pl=new Uint8Array(4);
+ pl[0]=val||1;
+ return buildPkt(40,pl,230,SID,CID_APP);
 }
 
 function buildAnchorCmd(cmd){
- const pl=new Uint8Array(33);
+ var pl=new Uint8Array(33);
  pl[28]=cmd&0xFF;pl[29]=(cmd>>8)&0xFF;
  return buildPkt(MID_CL,pl,CX_CL);
 }
 
-// Parse incoming MAVLink from reassembled stream
 function parseMavlinkStream(newData){
- const combined=new Uint8Array(rxBuf.length+newData.length);
+ var combined=new Uint8Array(rxBuf.length+newData.length);
  combined.set(rxBuf);combined.set(newData,rxBuf.length);
  
- let i=0;
+ var i=0;
  while(i<combined.length){
   if(combined[i]!==STX){i++;continue}
   if(i+1>=combined.length)break;
-  const plLen=combined[i+1];
-  const total=8+plLen;
+  var plLen=combined[i+1];
+  var total=8+plLen;
   if(i+total>combined.length)break;
   
-  const mid=combined[i+5];
-  const payload=combined.slice(i+6,i+6+plLen);
+  var mid=combined[i+5];
+  var sysid=combined[i+3];
+  var compid=combined[i+4];
+  var payload=combined.slice(i+6,i+6+plLen);
   
   if(mid===MID_HS){
+   // Check for "Isok" at offset 4
    if(plLen>=8&&payload[4]===73&&payload[5]===115&&payload[6]===111&&payload[7]===107){
     hsOk=true;sH.textContent='OK (Isok)';
-    log('[HANDSHAKE] OK! Isok received!');
+    log('[HANDSHAKE] ✅ OK! Isok received!');
     updUI();
-   }else if(plLen>=8){
-    let txt='';for(let j=4;j<plLen&&payload[j]!==0;j++)txt+=String.fromCharCode(payload[j]);
-    log(`[HS] data: "${txt}" | ${hex(payload)}`);
-    if(txt.startsWith('HSW_')&&!devName){
-     devName=txt;sD.textContent=devName;
-     log(`[HS] Device name from HS response: ${devName}`);
+   }else if(plLen>=4){
+    // Motor sends its name in MSG_ID=249 response (SYS=01)
+    var txt='';
+    for(var j=4;j<plLen&&payload[j]!==0;j++)txt+=String.fromCharCode(payload[j]);
+    log('[HS] RX from SYS='+sysid+': "'+txt+'" | '+hex(payload.slice(0,20)));
+    
+    if(txt.length>0&&!hsOk){
+     // Got motor name - try handshake with it
+     devName=txt;
+     sD.textContent=devName+' ('+bleName+')';
+     log('[HS] Motor name: "'+devName+'" - sending handshake...');
+     setTimeout(function(){trySendHS(devName)},300);
     }
    }
   }
   else if(mid===MID_DEV&&plLen>=4){
-   let name='';for(let j=0;j<plLen&&payload[j]!==0;j++)name+=String.fromCharCode(payload[j]);
+   var name='';for(var j=0;j<plLen&&payload[j]!==0;j++)name+=String.fromCharCode(payload[j]);
    devName=name;sD.textContent=name;
-   log(`[DEV] Device: "${name}"`);
-   // Auto-send handshake when we get device name
-   if(conn&&!hsOk)sendHandshake();
+   log('[DEV] MSG_ID=7: "'+name+'"');
+   if(conn&&!hsOk)setTimeout(function(){trySendHS(name)},200);
   }
   else if(mid===MID_BATT&&plLen>=24){
-   const v=new DataView(payload.buffer,payload.byteOffset);
-   const lvl=v.getInt32(16,true);
-   const st=v.getInt32(20,true);
-   const bs={0:'?',1:'LOW!',2:'OK',4:'FULL'};
-   sBat.textContent=`${lvl} (${bs[st]||'?'})`;
-   log(`[BATT] level=${lvl} state=${st} (${bs[st]||'?'})`);
-  }
-  else if(mid===MID_GPS&&plLen>=12){
-   const v=new DataView(payload.buffer,payload.byteOffset);
-   const fix=v.getInt32(0,true);
-   const lat=v.getInt32(4,true)/1e7;
-   const lon=v.getInt32(8,true)/1e7;
-   sGps.textContent=`${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-   log(`[GPS] lat=${lat.toFixed(7)} lon=${lon.toFixed(7)} fix=${fix}`);
+   var v=new DataView(payload.buffer,payload.byteOffset);
+   var lvl=v.getInt32(16,true);
+   var st=v.getInt32(20,true);
+   sBat.textContent=lvl+' (st='+st+')';
+   log('[BATT] level='+lvl+' state='+st);
   }
   else if(mid===MID_HB){}
-  else if(mid===MID_IMU||mid===MID_COMPASS||mid===52){}
+  else if(mid===26||mid===30||mid===52){}
+  else if(mid===1){
+   log('[RX] SYS_STATUS len='+plLen+' | '+hex(payload.slice(0,12)));
+  }
   else{
-   log(`[RX] MSG_ID=${mid} len=${plLen} | ${hex(payload.slice(0,20))}`);
+   log('[RX] MSG_ID='+mid+' sys='+sysid+' comp='+compid+' len='+plLen+' | '+hex(payload.slice(0,20)));
   }
   
   i+=total;
@@ -182,73 +190,99 @@ function parseMavlinkStream(newData){
 
 async function sendPkt(p,label){
  if(!conn||!wCh)return;
- log(`[TX ${label}] ${hex(p)}`);
+ log('[TX '+label+'] '+hex(p));
  try{await wCh.writeValueWithoutResponse(p)}
- catch(e){try{await wCh.writeValue(p)}catch(e2){log(`WRITE FAIL: ${e2.message}`)}}
+ catch(e){try{await wCh.writeValue(p)}catch(e2){log('WRITE FAIL: '+e2.message)}}
 }
 
-async function sendHandshake(){
- if(!devName){log('[HS] No device name yet');return}
- log(`[HS] Sending: ${devName},${WIFI_PASS},${HS_TOKEN}`);
- await sendPkt(buildHandshake(devName),'HANDSHAKE');
+async function trySendHS(name){
+ log('[HS] Sending: "'+name+','+WIFI_PASS+','+HS_TOKEN+'"');
+ await sendPkt(buildHandshake(name),'HS('+name+')');
 }
 
-let hbInterval=null;
+var hbInterval=null;
 
 async function doConnect(){
  try{
   log('Scanning for HM_*...');
   dev=await navigator.bluetooth.requestDevice({
    filters:[{namePrefix:'HM_'}],
-   optionalServices:[SVC,0xFFE5,0xFFF0,0x180A,0x1800,0x1801,'generic_access','generic_attribute','device_information']
+   optionalServices:[SVC,0xFFE5,0xFFF0,0x180A,0x1800,0x1801]
   });
-  log(`Selected: ${dev.name}`);
+  bleName=dev.name;
+  log('Selected: '+bleName);
   dev.addEventListener('gattserverdisconnected',onDisco);
   
   srv=await dev.gatt.connect();
-  const svc=await srv.getPrimaryService(SVC);
+  var svc=await srv.getPrimaryService(SVC);
   wCh=await svc.getCharacteristic(WC);
   log('FFE1 (write) OK');
   
   try{
    nCh=await svc.getCharacteristic(NC);
    await nCh.startNotifications();
-   nCh.addEventListener('characteristicvaluechanged',(ev)=>{
+   nCh.addEventListener('characteristicvaluechanged',function(ev){
     parseMavlinkStream(new Uint8Array(ev.target.value.buffer));
    });
    log('FFE4 (notify) OK');
   }catch(e){log('FFE4: '+e.message)}
   
   conn=true;updUI();
-  log('=== BLE CONNECTED ===');
+  log('=== BLE CONNECTED to '+bleName+' ===');
+  sD.textContent=bleName;
   
-  // Start heartbeats
-  hbInterval=setInterval(async()=>{if(conn)await sendPkt(buildHB(),'HB')},2000);
+  // Start heartbeats every 2s
+  hbInterval=setInterval(async function(){if(conn)await sendPkt(buildHB(),'HB')},2000);
   
-  // Send initial heartbeats, wait for MSG_ID=7
+  // === INIT SEQUENCE (matched from HCI snoop log) ===
+  sH.textContent='Init...';
+  // Step 1: Heartbeat
   await sendPkt(buildHB(),'HB');
-  sH.textContent='Odottaa...';
   
-  // Wait and retry handshake
-  setTimeout(async()=>{
-   if(!hsOk&&devName)await sendHandshake();
-  },1500);
-  setTimeout(async()=>{
-   if(!hsOk&&devName)await sendHandshake();
-  },3000);
-  setTimeout(async()=>{
-   if(!hsOk)log('[HS] Still waiting for handshake...');
-  },5000);
+  // Step 2: MSG_ID=43 + MSG_ID=40 (init)
+  setTimeout(async function(){
+   log('[INIT] MSG_ID=43...');
+   await sendPkt(buildMsg43(),'MSG43');
+  },500);
+  setTimeout(async function(){
+   log('[INIT] MSG_ID=40...');
+   await sendPkt(buildMsg40(1),'MSG40');
+  },1000);
+  
+  // Step 3: Handshake with known motor WiFi name
+  devName=MOTOR_NAME;
+  sD.textContent=MOTOR_NAME+' ('+bleName+')';
+  sH.textContent='Handshake...';
+  
+  setTimeout(async function(){
+   if(!hsOk){
+    log('[HS] Sending with motor name: '+MOTOR_NAME);
+    await trySendHS(MOTOR_NAME);
+   }
+  },2000);
+  
+  // Retry
+  setTimeout(async function(){
+   if(!hsOk){
+    log('[HS] Retry...');
+    await trySendHS(MOTOR_NAME);
+   }
+  },4000);
+  
+  setTimeout(async function(){
+   if(!hsOk)log('[HS] Failed. Use HANDSHAKE button.');
+   else log('[HS] ✅ Connected!');
+  },6000);
   
  }catch(e){log('ERROR: '+e.message)}
 }
 
 function doDisco(){if(dev&&dev.gatt.connected)dev.gatt.disconnect();onDisco()}
 function onDisco(){
- conn=false;hsOk=false;anc=false;wCh=null;nCh=null;devName='';
+ conn=false;hsOk=false;anc=false;wCh=null;nCh=null;devName='';bleName='';
  rxBuf=new Uint8Array(0);
  if(hbInterval){clearInterval(hbInterval);hbInterval=null}
- updUI();sH.textContent='---';sGps.textContent='---';sBat.textContent='---';
+ updUI();sH.textContent='---';sBat.textContent='---';
  log('=== DISCONNECTED ===');
 }
 
@@ -256,32 +290,36 @@ async function doAnchorToggle(){
  if(!hsOk)return;
  if(anc){
   await sendPkt(buildAnchorCmd(13),'ANCHOR OFF');
-  await new Promise(r=>setTimeout(r,200));
+  await new Promise(function(r){setTimeout(r,200)});
   await sendPkt(buildAnchorCmd(13),'ANCHOR OFF');
   anc=false;
  }else{
   await sendPkt(buildAnchorCmd(12),'ANCHOR ON');
-  await new Promise(r=>setTimeout(r,200));
+  await new Promise(function(r){setTimeout(r,200)});
   await sendPkt(buildAnchorCmd(12),'ANCHOR ON');
   anc=true;
  }
  sA.textContent=anc?'PAALLA':'POIS';updUI();
 }
 
-async function doHB(){if(conn)await sendPkt(buildHB(),'HB')}
+async function manualHS(){
+ if(!conn)return;
+ var name=prompt('Device name:',devName||bleName);
+ if(name!==null){devName=name;await trySendHS(name);}
+}
 
 function doExport(){
- const all=`Haswing BLE Diag v2.0 - ${new Date().toISOString()}\nDevice: ${devName}\n\n${fullLog}`;
- navigator.clipboard.writeText(all).then(()=>log('Loki kopioitu!')).catch(()=>{
-  const b=new Blob([all],{type:'text/plain'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);
+ var all='Haswing BLE Diag v2.2 - '+new Date().toISOString()+'\nBLE: '+bleName+' Motor: '+devName+'\n\n'+fullLog;
+ navigator.clipboard.writeText(all).then(function(){log('Kopioitu!')}).catch(function(){
+  var b=new Blob([all],{type:'text/plain'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);
   a.download='haswing_'+Date.now()+'.txt';a.click();
  });
 }
 
 function updUI(){
  sB.textContent=conn?(hsOk?'[OK] Valmis':'[BLE] Yhdistetty'):'Ei yhdistetty';
- bCon.disabled=conn;bDis.disabled=!conn;bAnc.disabled=!hsOk;bHb.disabled=!conn;
+ bCon.disabled=conn;bDis.disabled=!conn;bAnc.disabled=!hsOk;bHs.disabled=!conn;
  bAnc.className=anc?'btn big active':'btn big';
  bAnc.textContent=anc?'⚓ ANKKURI PAALLA':'⚓ ANKKURI';
 }
