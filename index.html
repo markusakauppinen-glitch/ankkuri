@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>Haswing Anchor – BLE v2.2</title>
+<title>Haswing Anchor – BLE v2.3</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,Roboto,sans-serif;background:#111;color:#fff;padding:12px;font-size:14px}
@@ -25,8 +25,8 @@ h1{font-size:16px;text-align:center;margin-bottom:4px}
 </head>
 <body>
 
-<h1>⚓ HASWING ANCHOR v2.2</h1>
-<p class="sub">Init sequence from HCI log</p>
+<h1>⚓ HASWING ANCHOR v2.3</h1>
+<p class="sub">Event-driven init sequence</p>
 
 <div class="card">
  <h2>Tila</h2>
@@ -54,7 +54,7 @@ h1{font-size:16px;text-align:center;margin-bottom:4px}
 
 <div class="card">
  <h2>Viestiloki</h2>
- <div class="log" id="L">v2.2 - HCI init sequence\n</div>
+ <div class="log" id="L">v2.3 - event-driven init\n</div>
 </div>
 
 <script>
@@ -67,6 +67,12 @@ var WIFI_PASS="0123456789",HS_TOKEN="Jz",MOTOR_NAME="HSW_UdUon";
 var dev,srv,wCh,nCh,conn=false,hsOk=false,anc=false,seq=0,devName="",bleName="";
 var rxBuf=new Uint8Array(0);
 var fullLog='';
+
+// v2.3: Event-driven init state
+var initPhase=0; // 0=idle, 1=waiting for MSG44, 2=MSG40 sent, 3=handshake phase
+var gotMsg44=false;
+var hsAttempts=0;
+var MAX_HS_ATTEMPTS=5;
 
 var L=document.getElementById('L');
 var sB=document.getElementById('sB'),sD=document.getElementById('sD');
@@ -123,6 +129,35 @@ function buildAnchorCmd(cmd){
  return buildPkt(MID_CL,pl,CX_CL);
 }
 
+// v2.3: React to MSG44 and trigger next init step
+async function onMsg44(payload){
+ gotMsg44=true;
+ log('[INIT] ✓ MSG44 received: '+hex(payload)+' → sending MSG_ID=40...');
+ sH.textContent='MSG40...';
+ initPhase=2;
+ await sendPkt(buildMsg40(1),'MSG40');
+ // Wait 500ms then send handshake if no Isok yet
+ setTimeout(function(){doHandshakeSequence()},500);
+}
+
+async function doHandshakeSequence(){
+ if(hsOk||!conn)return;
+ initPhase=3;
+ hsAttempts++;
+ if(hsAttempts>MAX_HS_ATTEMPTS){
+  log('[HS] ❌ Epäonnistui '+MAX_HS_ATTEMPTS+' yrityksellä. Käytä HANDSHAKE-nappia.');
+  sH.textContent='FAILED';
+  return;
+ }
+ log('[HS] Yritys '+hsAttempts+'/'+MAX_HS_ATTEMPTS+': "'+MOTOR_NAME+','+WIFI_PASS+','+HS_TOKEN+'"');
+ sH.textContent='HS yritys '+hsAttempts+'...';
+ await trySendHS(MOTOR_NAME);
+ // Retry after 2s if still no Isok
+ setTimeout(function(){
+  if(!hsOk&&conn)doHandshakeSequence();
+ },2000);
+}
+
 function parseMavlinkStream(newData){
  var combined=new Uint8Array(rxBuf.length+newData.length);
  combined.set(rxBuf);combined.set(newData,rxBuf.length);
@@ -150,7 +185,7 @@ function parseMavlinkStream(newData){
     // Motor sends its name in MSG_ID=249 response (SYS=01)
     var txt='';
     for(var j=4;j<plLen&&payload[j]!==0;j++)txt+=String.fromCharCode(payload[j]);
-    log('[HS] RX from SYS='+sysid+': "'+txt+'" | '+hex(payload.slice(0,20)));
+    log('[HS] RX from SYS='+sysid+': "'+txt+'" | '+hex(payload.slice(0,Math.min(plLen,31))));
     
     if(txt.length>0&&!hsOk){
      // Got motor name - try handshake with it
@@ -159,6 +194,13 @@ function parseMavlinkStream(newData){
      log('[HS] Motor name: "'+devName+'" - sending handshake...');
      setTimeout(function(){trySendHS(devName)},300);
     }
+   }
+  }
+  else if(mid===44){
+   // v2.3: MSG44 = response to MSG43 init, triggers next phase
+   log('[RX] MSG_ID=44 sys='+sysid+' comp='+compid+' | '+hex(payload));
+   if(initPhase===1&&!gotMsg44){
+    onMsg44(payload);
    }
   }
   else if(mid===MID_DEV&&plLen>=4){
@@ -177,7 +219,7 @@ function parseMavlinkStream(newData){
   else if(mid===MID_HB){}
   else if(mid===26||mid===30||mid===52){}
   else if(mid===1){
-   log('[RX] SYS_STATUS len='+plLen+' | '+hex(payload.slice(0,12)));
+   log('[RX] SYS_STATUS len='+plLen+' | '+hex(payload.slice(0,20)));
   }
   else{
    log('[RX] MSG_ID='+mid+' sys='+sysid+' comp='+compid+' len='+plLen+' | '+hex(payload.slice(0,20)));
@@ -231,48 +273,36 @@ async function doConnect(){
   log('=== BLE CONNECTED to '+bleName+' ===');
   sD.textContent=bleName;
   
+  // Reset init state
+  initPhase=0;gotMsg44=false;hsAttempts=0;
+  
   // Start heartbeats every 2s
   hbInterval=setInterval(async function(){if(conn)await sendPkt(buildHB(),'HB')},2000);
   
-  // === INIT SEQUENCE (matched from HCI snoop log) ===
+  // === INIT SEQUENCE v2.3: event-driven ===
   sH.textContent='Init...';
+  devName=MOTOR_NAME;
+  sD.textContent=MOTOR_NAME+' ('+bleName+')';
+  
   // Step 1: Heartbeat
   await sendPkt(buildHB(),'HB');
   
-  // Step 2: MSG_ID=43 + MSG_ID=40 (init)
+  // Step 2: MSG_ID=43 after 500ms, then WAIT for MSG44 response
   setTimeout(async function(){
-   log('[INIT] MSG_ID=43...');
+   log('[INIT] MSG_ID=43... (waiting for MSG44 response)');
+   initPhase=1;
    await sendPkt(buildMsg43(),'MSG43');
+   
+   // Fallback: if no MSG44 after 2s, send MSG40 anyway
+   setTimeout(async function(){
+    if(!gotMsg44&&conn&&!hsOk){
+     log('[INIT] ⚠ No MSG44 response after 2s, sending MSG40 anyway...');
+     initPhase=2;
+     await sendPkt(buildMsg40(1),'MSG40');
+     setTimeout(function(){doHandshakeSequence()},500);
+    }
+   },2000);
   },500);
-  setTimeout(async function(){
-   log('[INIT] MSG_ID=40...');
-   await sendPkt(buildMsg40(1),'MSG40');
-  },1000);
-  
-  // Step 3: Handshake with known motor WiFi name
-  devName=MOTOR_NAME;
-  sD.textContent=MOTOR_NAME+' ('+bleName+')';
-  sH.textContent='Handshake...';
-  
-  setTimeout(async function(){
-   if(!hsOk){
-    log('[HS] Sending with motor name: '+MOTOR_NAME);
-    await trySendHS(MOTOR_NAME);
-   }
-  },2000);
-  
-  // Retry
-  setTimeout(async function(){
-   if(!hsOk){
-    log('[HS] Retry...');
-    await trySendHS(MOTOR_NAME);
-   }
-  },4000);
-  
-  setTimeout(async function(){
-   if(!hsOk)log('[HS] Failed. Use HANDSHAKE button.');
-   else log('[HS] ✅ Connected!');
-  },6000);
   
  }catch(e){log('ERROR: '+e.message)}
 }
@@ -280,7 +310,7 @@ async function doConnect(){
 function doDisco(){if(dev&&dev.gatt.connected)dev.gatt.disconnect();onDisco()}
 function onDisco(){
  conn=false;hsOk=false;anc=false;wCh=null;nCh=null;devName='';bleName='';
- rxBuf=new Uint8Array(0);
+ rxBuf=new Uint8Array(0);initPhase=0;gotMsg44=false;hsAttempts=0;
  if(hbInterval){clearInterval(hbInterval);hbInterval=null}
  updUI();sH.textContent='---';sBat.textContent='---';
  log('=== DISCONNECTED ===');
@@ -309,7 +339,7 @@ async function manualHS(){
 }
 
 function doExport(){
- var all='Haswing BLE Diag v2.2 - '+new Date().toISOString()+'\nBLE: '+bleName+' Motor: '+devName+'\n\n'+fullLog;
+ var all='Haswing BLE Diag v2.3 - '+new Date().toISOString()+'\nBLE: '+bleName+' Motor: '+devName+'\n\n'+fullLog;
  navigator.clipboard.writeText(all).then(function(){log('Kopioitu!')}).catch(function(){
   var b=new Blob([all],{type:'text/plain'});
   var a=document.createElement('a');a.href=URL.createObjectURL(b);
