@@ -112,6 +112,10 @@ function buildMsg40(val){
 function buildAnchorCmd(cmd){
  var pl=new Uint8Array(33);
  pl[28]=cmd&0xFF;pl[29]=(cmd>>8)&0xFF;
+ // COMMAND_LONG: target_system=1, target_component=1
+ pl[30]=1;  // target_system
+ pl[31]=1;  // target_component
+ pl[32]=0;  // confirmation
  return buildPkt(MID_CL,pl,CX_CL);
 }
 
